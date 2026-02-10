@@ -6,3 +6,4 @@ declare module 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?raw';
 declare module '@ffmpeg/core?url';
 declare module '@ffmpeg/core/wasm?url';
 declare module '@ffmpeg/ffmpeg/worker?raw';
+declare module '@ffmpeg/ffmpeg/worker?url';
