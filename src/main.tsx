@@ -6,3 +6,4 @@ const root = document.getElementById('app');
 if (root) {
   render(<App />, root);
 }
+document.body.classList.add('app-ready');
