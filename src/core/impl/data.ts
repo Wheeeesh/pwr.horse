@@ -1,14 +1,17 @@
 import type { Converter } from '../types';
 import { readAsArrayBuffer, readAsText, toBlob } from '../utils';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
 
-const jsonToCsv = (json: unknown[]) => {
+const loadXlsx = async () => import('xlsx');
+const loadJsPDF = async () => (await import('jspdf')).default;
+
+const jsonToCsv = async (json: unknown[]) => {
+  const XLSX = await loadXlsx();
   const worksheet = XLSX.utils.json_to_sheet(json as any[]);
   return XLSX.utils.sheet_to_csv(worksheet);
 };
 
-const csvToJson = (csv: string) => {
+const csvToJson = async (csv: string) => {
+  const XLSX = await loadXlsx();
   const worksheet = XLSX.utils.csv_to_sheet(csv);
   return XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 };
@@ -21,6 +24,7 @@ export const dataConverters: Converter[] = [
     description: 'Convert CSV to Excel format.',
     accept: '.csv',
     async run(files, _options, ctx) {
+      const XLSX = await loadXlsx();
       const csv = await readAsText(files[0]);
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.csv_to_sheet(csv);
@@ -37,6 +41,7 @@ export const dataConverters: Converter[] = [
     description: 'Convert Excel to CSV.',
     accept: '.xlsx,.xls',
     async run(files, _options, ctx) {
+      const XLSX = await loadXlsx();
       const data = await readAsArrayBuffer(files[0]);
       const wb = XLSX.read(data, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -54,7 +59,7 @@ export const dataConverters: Converter[] = [
     async run(files, _options, ctx) {
       const jsonText = await readAsText(files[0]);
       const json = JSON.parse(jsonText) as unknown[];
-      const csv = jsonToCsv(json);
+      const csv = await jsonToCsv(json);
       ctx.onProgress(1);
       return [{ name: 'data.csv', blob: new Blob([csv], { type: 'text/csv' }), mime: 'text/csv' }];
     }
@@ -67,7 +72,7 @@ export const dataConverters: Converter[] = [
     accept: '.csv',
     async run(files, _options, ctx) {
       const csv = await readAsText(files[0]);
-      const json = csvToJson(csv);
+      const json = await csvToJson(csv);
       ctx.onProgress(1);
       return [{ name: 'data.json', blob: new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }), mime: 'application/json' }];
     }
@@ -147,6 +152,7 @@ export const dataConverters: Converter[] = [
     description: 'Convert plain text to PDF.',
     accept: '.txt',
     async run(files, _options, ctx) {
+      const jsPDF = await loadJsPDF();
       const text = await readAsText(files[0]);
       const pdf = new jsPDF('p', 'pt', 'a4');
       pdf.text(text.substring(0, 30000), 40, 60, { maxWidth: 520 });

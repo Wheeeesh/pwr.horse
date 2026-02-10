@@ -5,7 +5,6 @@ import { videoConverters } from './impl/video';
 import { audioConverters } from './impl/audio';
 import { archiveConverters } from './impl/archives';
 import { dataConverters } from './impl/data';
-import { qrConverters } from './impl/qr';
 
 export const converters: Converter[] = [
   ...documentConverters,
@@ -13,6 +12,5 @@ export const converters: Converter[] = [
   ...videoConverters,
   ...audioConverters,
   ...archiveConverters,
-  ...dataConverters,
-  ...qrConverters
+  ...dataConverters
 ];

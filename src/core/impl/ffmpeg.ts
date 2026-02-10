@@ -11,6 +11,16 @@ const inlineWorkerURL = URL.createObjectURL(new Blob([workerScript], { type: 'te
 let coreBlobURL: string | null = null;
 let wasmBlobURL: string | null = null;
 
+const withTimeout = async <T>(promise: Promise<T>, ms: number, label: string) => {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(label)), ms);
+  });
+  const result = await Promise.race([promise, timeout]);
+  if (timeoutId) window.clearTimeout(timeoutId);
+  return result;
+};
+
 const toBlobURL = async (url: string, mime: string) => {
   if (url.startsWith('blob:')) return url;
   const res = await fetch(url);
@@ -31,15 +41,6 @@ export const getFfmpeg = async () => {
         const resolvedWasm = inline ? await toBlobURL(wasmURL, 'application/wasm') : wasmURL;
         const resolvedWorker = inline ? inlineWorkerURL : workerUrl;
         await ffmpeg.load({ coreURL: resolvedCore, wasmURL: resolvedWasm, classWorkerURL: resolvedWorker });
-      };
-
-      const withTimeout = async (promise: Promise<void>, ms: number, label: string) => {
-        let timeoutId: number | undefined;
-        const timeout = new Promise<void>((_, reject) => {
-          timeoutId = window.setTimeout(() => reject(new Error(label)), ms);
-        });
-        await Promise.race([promise, timeout]);
-        if (timeoutId) window.clearTimeout(timeoutId);
       };
 
       try {
@@ -91,7 +92,8 @@ export const runFfmpeg = async (
         );
       }
     }
-    const exitCode = await ffmpeg.exec(['-i', inputName, ...args, outputName], timeoutMs);
+    const execPromise = ffmpeg.exec(['-i', inputName, ...args, outputName]);
+    const exitCode = await withTimeout(execPromise, timeoutMs, 'FFmpeg timed out');
     if (exitCode !== 0) {
       throw new Error(exitCode === 1 ? 'FFmpeg timed out' : `FFmpeg failed with code ${exitCode}`);
     }

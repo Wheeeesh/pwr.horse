@@ -1,16 +1,38 @@
-import { PDFDocument, degrees } from 'pdf-lib';
 import type { Converter } from '../types';
 import { readAsArrayBuffer, readAsText, canvasToBlob, toBlob } from '../utils';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf';
-import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?raw';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import mammoth from 'mammoth';
 
-const pdfWorkerBlob = new Blob([pdfWorker], { type: 'text/javascript' });
-GlobalWorkerOptions.workerSrc = URL.createObjectURL(pdfWorkerBlob);
+let pdfLibPromise: Promise<typeof import('pdf-lib')> | null = null;
+const loadPdfLib = async () => {
+  if (!pdfLibPromise) {
+    pdfLibPromise = import('pdf-lib');
+  }
+  return pdfLibPromise;
+};
+
+let pdfJsPromise: Promise<typeof import('pdfjs-dist/legacy/build/pdf')> | null = null;
+let pdfJsWorkerUrl: string | null = null;
+const loadPdfJs = async () => {
+  if (!pdfJsPromise) {
+    pdfJsPromise = (async () => {
+      const pdfjs = await import('pdfjs-dist/legacy/build/pdf');
+      if (!pdfJsWorkerUrl) {
+        const workerModule = await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?raw');
+        const workerSource = (workerModule as { default?: string }).default ?? (workerModule as unknown as string);
+        const workerBlob = new Blob([workerSource], { type: 'text/javascript' });
+        pdfJsWorkerUrl = URL.createObjectURL(workerBlob);
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfJsWorkerUrl;
+      }
+      return pdfjs;
+    })();
+  }
+  return pdfJsPromise;
+};
 
 const htmlToPdf = async (html: string): Promise<Blob> => {
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import('jspdf'),
+    import('html2canvas')
+  ]);
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.left = '-9999px';
@@ -45,8 +67,9 @@ const htmlToPdf = async (html: string): Promise<Blob> => {
 };
 
 const loadPdf = async (file: File) => {
+  const pdfjs = await loadPdfJs();
   const data = new Uint8Array(await readAsArrayBuffer(file));
-  const pdf = await getDocument({ data }).promise;
+  const pdf = await pdfjs.getDocument({ data }).promise;
   return pdf;
 };
 
@@ -63,6 +86,7 @@ const renderPdfPage = async (pdf: any, pageNumber: number, scale: number) => {
 };
 
 const docxToHtml = async (file: File) => {
+  const { default: mammoth } = await import('mammoth');
   const arrayBuffer = await readAsArrayBuffer(file);
   const result = await mammoth.convertToHtml({ arrayBuffer });
   return result.value;
@@ -85,6 +109,7 @@ export const documentConverters: Converter[] = [
     accept: 'application/pdf',
     multiple: true,
     async run(files, _options, ctx) {
+      const { PDFDocument } = await loadPdfLib();
       ctx.onProgress(0.05);
       const merged = await PDFDocument.create();
       for (let i = 0; i < files.length; i += 1) {
@@ -114,6 +139,7 @@ export const documentConverters: Converter[] = [
       }
     ],
     async run(files, options, ctx) {
+      const { PDFDocument } = await loadPdfLib();
       const ranges = String(options.ranges || '1');
       const [file] = files;
       const bytes = await readAsArrayBuffer(file);
@@ -172,6 +198,7 @@ export const documentConverters: Converter[] = [
       }
     ],
     async run(files, options, ctx) {
+      const { PDFDocument, degrees } = await loadPdfLib();
       const angle = parseInt(String(options.angle || '90'), 10);
       const [file] = files;
       const bytes = await readAsArrayBuffer(file);
@@ -238,6 +265,7 @@ export const documentConverters: Converter[] = [
     accept: 'image/*',
     multiple: true,
     async run(files, _options, ctx) {
+      const { PDFDocument } = await loadPdfLib();
       const pdf = await PDFDocument.create();
       for (let i = 0; i < files.length; i += 1) {
         const bytes = await readAsArrayBuffer(files[i]);
@@ -261,6 +289,7 @@ export const documentConverters: Converter[] = [
       { id: 'dpi', label: 'Target DPI', type: 'number', min: 72, max: 200, step: 12, default: 120 }
     ],
     async run(files, options, ctx) {
+      const { PDFDocument } = await loadPdfLib();
       const dpi = Number(options.dpi || 120);
       const scale = dpi / 72;
       const [file] = files;
@@ -286,6 +315,7 @@ export const documentConverters: Converter[] = [
     description: 'Extract plain text from DOCX.',
     accept: '.docx',
     async run(files, _options, ctx) {
+      const { default: mammoth } = await import('mammoth');
       const [file] = files;
       const result = await mammoth.extractRawText({ arrayBuffer: await readAsArrayBuffer(file) });
       ctx.onProgress(1);
@@ -334,6 +364,7 @@ export const documentConverters: Converter[] = [
     async run(files, _options, ctx) {
       const [file] = files;
       const { default: ePub } = await import('epubjs');
+      const { default: jsPDF } = await import('jspdf');
       const book = ePub(await readAsArrayBuffer(file));
       await book.ready;
       const spineItems = book.spine.spineItems;
@@ -400,6 +431,7 @@ export const documentConverters: Converter[] = [
     async run(files, _options, ctx) {
       const textResult = await documentConverters.find((c) => c.id === 'ocr_text')!.run(files, {}, ctx);
       const text = await textResult[0].blob.text();
+      const { default: jsPDF } = await import('jspdf');
       const pdf = new jsPDF('p', 'pt', 'a4');
       pdf.text(text.substring(0, 30000), 40, 60, { maxWidth: 520 });
       const blob = pdf.output('blob');

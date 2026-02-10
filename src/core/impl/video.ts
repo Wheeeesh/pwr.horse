@@ -1,5 +1,4 @@
 import type { Converter } from '../types';
-import { runFfmpeg } from './ffmpeg';
 
 const mimeForVideo = (format: string) => {
   if (format === 'mp4' || format === 'mov') return 'video/mp4';
@@ -48,6 +47,7 @@ export const videoConverters: Converter[] = [
       { id: 'subtitle', label: 'Burn-in SRT (optional)', type: 'textarea', placeholder: '1\n00:00:01,000 --> 00:00:03,000\nSubtitle text' }
     ],
     async run(files, options, ctx) {
+      const { runFfmpeg } = await import('./ffmpeg');
       const [file] = files;
       const format = String(options.format || 'mp4');
       const codec = String(options.codec || 'auto');
@@ -118,6 +118,7 @@ export const videoConverters: Converter[] = [
       { id: 'duration', label: 'Duration (sec)', type: 'number', min: 0, max: 100000, step: 1, default: 5 }
     ],
     async run(files, options, ctx) {
+      const { runFfmpeg } = await import('./ffmpeg');
       const [file] = files;
       const width = Number(options.width || 640);
       const fps = Number(options.fps || 12);
@@ -152,6 +153,7 @@ export const videoConverters: Converter[] = [
       }
     ],
     async run(files, options, ctx) {
+      const { runFfmpeg } = await import('./ffmpeg');
       const [file] = files;
       const format = String(options.format || 'mp3');
       const args = ['-vn'];

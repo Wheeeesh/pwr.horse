@@ -1,5 +1,4 @@
 import type { Converter } from '../types';
-import { runFfmpeg } from './ffmpeg';
 
 const mimeForAudio = (format: string) => {
   if (format === 'mp3') return 'audio/mpeg';
@@ -36,6 +35,7 @@ export const audioConverters: Converter[] = [
       { id: 'sampleRate', label: 'Sample rate (Hz)', type: 'number', min: 8000, max: 48000, step: 1000, default: 44100 }
     ],
     async run(files, options, ctx) {
+      const { runFfmpeg } = await import('./ffmpeg');
       const [file] = files;
       const format = String(options.format || 'mp3');
       const bitrate = Number(options.bitrate || 192);
@@ -64,6 +64,7 @@ export const audioConverters: Converter[] = [
       { id: 'target', label: 'Target LUFS', type: 'number', min: -30, max: -10, step: 1, default: -16 }
     ],
     async run(files, options, ctx) {
+      const { runFfmpeg } = await import('./ffmpeg');
       const [file] = files;
       const target = Number(options.target || -16);
       const args = ['-af', `loudnorm=I=${target}:TP=-1.5:LRA=11`, '-c:a', 'pcm_s16le'];

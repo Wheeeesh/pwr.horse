@@ -27,7 +27,34 @@ if (scriptMatch) {
       </div>
     </div>
   `;
-  html = html.replace('</body>', `${loader}\n${script}\n</body>`);
+  const bootScript = `
+    <script>
+      (function () {
+        var boot = document.getElementById('boot');
+        function setBoot(title, subtitle) {
+          if (!boot) return;
+          var titleEl = boot.querySelector('.boot-title');
+          var subtitleEl = boot.querySelector('.boot-subtitle');
+          if (titleEl) titleEl.textContent = title;
+          if (subtitleEl) subtitleEl.textContent = subtitle;
+        }
+        window.addEventListener('error', function (event) {
+          setBoot('Something went wrong', event && event.message ? event.message : 'App failed to load.');
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+          var reason = event && event.reason ? event.reason : 'App failed to load.';
+          var message = reason instanceof Error ? reason.message : String(reason);
+          setBoot('Something went wrong', message);
+        });
+        window.setTimeout(function () {
+          if (!document.body.classList.contains('app-ready')) {
+            setBoot('Still loading…', 'Large conversions load on demand. If this persists, refresh the page.');
+          }
+        }, 8000);
+      })();
+    </script>
+  `;
+  html = html.replace('</body>', `${loader}\n${bootScript}\n${script}\n</body>`);
 }
 
 const styleBlock = `
@@ -53,7 +80,7 @@ const styleBlock = `
     body.app-ready #boot { display: none; }
   </style>
 `;
-if (!html.includes('#boot')) {
+if (!html.includes('body.app-ready #boot')) {
   html = html.replace('</head>', `${styleBlock}\n</head>`);
 }
 

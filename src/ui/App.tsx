@@ -5,7 +5,6 @@ import OptionsForm from './components/OptionsForm';
 import OutputList from './components/OutputList';
 import { converters } from '../core/converters';
 import type { ConversionResult, Converter, ConverterCategory, ConverterOption } from '../core/types';
-import QRCode from 'qrcode';
 import { zipSync } from 'fflate';
 
 const categoryChips: { id: string; label: string; category: ConverterCategory }[] = [
@@ -363,6 +362,7 @@ const App = () => {
     setQrLoading(true);
     const payload = buildQrPayload();
     try {
+      const { default: QRCode } = await import('qrcode');
       const png = await QRCode.toDataURL(payload, {
         width: 280,
         margin: 2,
@@ -381,8 +381,9 @@ const App = () => {
   };
 
   useEffect(() => {
+    if (mode !== 'qr') return;
     generateQr();
-  }, [qrType, qrFields, qrStyle]);
+  }, [mode, qrType, qrFields, qrStyle]);
 
   const downloadSvg = () => {
     const blob = new Blob([qrPreview.svg], { type: 'image/svg+xml' });
