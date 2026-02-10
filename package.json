@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && node scripts/postbuild.js",
+    "dev": "node scripts/use-dev-index.js && vite",
+    "build": "node scripts/use-dev-index.js && vite build && node scripts/postbuild.js && node scripts/use-prod-index.js",
     "preview": "vite preview"
   },
   "dependencies": {
