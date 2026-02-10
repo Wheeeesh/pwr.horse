@@ -34,12 +34,18 @@ export const runFfmpeg = async (
   }
   const inputName = `input-${Date.now()}-${input.name}`;
   await ffmpeg.writeFile(inputName, await fetchFile(input));
+  if (onProgress) {
+    onProgress(0.02);
+  }
   if (extraFiles) {
     for (const file of extraFiles) {
       await ffmpeg.writeFile(file.name, typeof file.data === 'string' ? new TextEncoder().encode(file.data) : file.data);
     }
   }
   await ffmpeg.exec(['-i', inputName, ...args, outputName]);
+  if (onProgress) {
+    onProgress(0.98);
+  }
   const data = await ffmpeg.readFile(outputName);
   await ffmpeg.deleteFile(inputName);
   await ffmpeg.deleteFile(outputName);

@@ -14,7 +14,10 @@ export interface Job {
 }
 
 export const createJob = (title: string): Job => ({
-  id: crypto.randomUUID(),
+  id:
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `job-${Date.now()}-${Math.random().toString(16).slice(2)}`,
   title,
   status: 'queued',
   progress: 0,

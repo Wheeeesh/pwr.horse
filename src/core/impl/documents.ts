@@ -44,8 +44,13 @@ const htmlToPdf = async (html: string): Promise<Blob> => {
   return blob;
 };
 
-const renderPdfPage = async (data: ArrayBuffer, pageNumber: number, scale: number) => {
+const loadPdf = async (file: File) => {
+  const data = new Uint8Array(await readAsArrayBuffer(file));
   const pdf = await getDocument({ data }).promise;
+  return pdf;
+};
+
+const renderPdfPage = async (pdf: any, pageNumber: number, scale: number) => {
   const page = await pdf.getPage(pageNumber);
   const viewport = page.getViewport({ scale });
   const canvas = document.createElement('canvas');
@@ -210,11 +215,10 @@ export const documentConverters: Converter[] = [
       const format = String(options.format || 'png');
       const scale = Number(options.scale || 1.5);
       const [file] = files;
-      const data = await readAsArrayBuffer(file);
-      const pdf = await getDocument({ data }).promise;
+      const pdf = await loadPdf(file);
       const results = [] as { name: string; blob: Blob; mime: string }[];
       for (let i = 1; i <= pdf.numPages; i += 1) {
-        const canvas = await renderPdfPage(data, i, scale);
+        const canvas = await renderPdfPage(pdf, i, scale);
         const blob = await canvasToBlob(canvas, format === 'jpg' ? 'image/jpeg' : 'image/png', 0.92);
         results.push({
           name: `page-${i}.${format}`,
@@ -260,11 +264,10 @@ export const documentConverters: Converter[] = [
       const dpi = Number(options.dpi || 120);
       const scale = dpi / 72;
       const [file] = files;
-      const data = await readAsArrayBuffer(file);
-      const pdf = await getDocument({ data }).promise;
+      const pdf = await loadPdf(file);
       const outPdf = await PDFDocument.create();
       for (let i = 1; i <= pdf.numPages; i += 1) {
-        const canvas = await renderPdfPage(data, i, scale);
+        const canvas = await renderPdfPage(pdf, i, scale);
         const blob = await canvasToBlob(canvas, 'image/jpeg', 0.75);
         const arrayBuffer = await blob.arrayBuffer();
         const img = await outPdf.embedJpg(arrayBuffer);
@@ -360,10 +363,9 @@ export const documentConverters: Converter[] = [
       for (let i = 0; i < files.length; i += 1) {
         const file = files[i];
         if (file.type === 'application/pdf') {
-          const data = await readAsArrayBuffer(file);
-          const pdf = await getDocument({ data }).promise;
+          const pdf = await loadPdf(file);
           for (let page = 1; page <= pdf.numPages; page += 1) {
-            const canvas = await renderPdfPage(data, page, 1.5);
+            const canvas = await renderPdfPage(pdf, page, 1.5);
             const imageData = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height);
             if (imageData) {
               combined += await ocrImageData(imageData);

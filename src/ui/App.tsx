@@ -116,6 +116,13 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 };
 
+const createId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 interface QueueItem {
   id: string;
   file: File;
@@ -127,7 +134,7 @@ interface QueueItem {
 }
 
 const createQueueItem = (file: File, format?: string): QueueItem => ({
-  id: crypto.randomUUID(),
+  id: createId(),
   file,
   status: 'queued',
   progress: 0,

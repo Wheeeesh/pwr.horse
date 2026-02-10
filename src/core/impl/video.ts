@@ -127,6 +127,7 @@ export const videoConverters: Converter[] = [
       if (start > 0) args.push('-ss', String(start));
       if (duration > 0) args.push('-t', String(duration));
       args.push('-vf', `fps=${fps},scale=${width}:-1:flags=lanczos`);
+      args.push('-an');
       const blob = await runFfmpeg(file, args, 'output.gif', (value) => ctx.onProgress(value));
       return [{ name: 'clip.gif', blob, mime: 'image/gif' }];
     }
