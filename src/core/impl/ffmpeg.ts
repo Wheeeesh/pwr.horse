@@ -3,7 +3,6 @@ import { fetchFile } from '@ffmpeg/util';
 import coreURL from '@ffmpeg/core?url';
 import wasmURL from '@ffmpeg/core/wasm?url';
 import workerScript from '@ffmpeg/ffmpeg/worker?raw';
-import workerUrl from '@ffmpeg/ffmpeg/worker?url';
 
 let instance: FFmpeg | null = null;
 let loading: Promise<FFmpeg> | null = null;
@@ -34,30 +33,13 @@ export const getFfmpeg = async () => {
   if (!loading) {
     loading = (async () => {
       const ffmpeg = new FFmpeg();
-      const useInline = !import.meta.env.DEV;
-
-      const load = async (inline: boolean) => {
-        const resolvedCore = inline ? await toBlobURL(coreURL, 'text/javascript') : coreURL;
-        const resolvedWasm = inline ? await toBlobURL(wasmURL, 'application/wasm') : wasmURL;
-        const resolvedWorker = inline ? inlineWorkerURL : workerUrl;
-        await ffmpeg.load({ coreURL: resolvedCore, wasmURL: resolvedWasm, classWorkerURL: resolvedWorker });
-      };
-
-      try {
-        if (!useInline) {
-          await withTimeout(load(false), 30_000, 'FFmpeg load timed out');
-        } else {
-          if (!coreBlobURL) coreBlobURL = await toBlobURL(coreURL, 'text/javascript');
-          if (!wasmBlobURL) wasmBlobURL = await toBlobURL(wasmURL, 'application/wasm');
-          await withTimeout(load(true), 30_000, 'FFmpeg load timed out');
-        }
-      } catch (error) {
-        if (useInline) {
-          await withTimeout(load(false), 30_000, 'FFmpeg load timed out');
-        } else {
-          throw error;
-        }
-      }
+      if (!coreBlobURL) coreBlobURL = await toBlobURL(coreURL, 'text/javascript');
+      if (!wasmBlobURL) wasmBlobURL = await toBlobURL(wasmURL, 'application/wasm');
+      await withTimeout(
+        ffmpeg.load({ coreURL: coreBlobURL, wasmURL: wasmBlobURL, classWorkerURL: inlineWorkerURL }),
+        30_000,
+        'FFmpeg load timed out'
+      );
 
       instance = ffmpeg;
       return ffmpeg;

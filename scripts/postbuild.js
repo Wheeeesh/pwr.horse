@@ -2,12 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 const distDir = path.resolve('dist');
-const assetsDir = path.join(distDir, 'assets');
 const indexPath = path.join(distDir, 'index.html');
-
-if (fs.existsSync(assetsDir)) {
-  fs.rmSync(assetsDir, { recursive: true, force: true });
-}
 
 if (!fs.existsSync(indexPath)) {
   console.warn('Postbuild: dist/index.html not found.');
@@ -15,6 +10,27 @@ if (!fs.existsSync(indexPath)) {
 }
 
 let html = fs.readFileSync(indexPath, 'utf8');
+const assetsDir = path.join(distDir, 'assets');
+
+const assetRefs = Array.from(new Set(html.match(/assets\/[A-Za-z0-9_.-]+/g) || []));
+if (assetRefs.length) {
+  assetRefs.forEach((ref) => {
+    const assetPath = path.join(distDir, ref);
+    if (!fs.existsSync(assetPath)) return;
+    const content = fs.readFileSync(assetPath);
+    const ext = path.extname(ref).toLowerCase();
+    const mime =
+      ext === '.js'
+        ? 'text/javascript'
+        : ext === '.wasm'
+          ? 'application/wasm'
+          : ext === '.css'
+            ? 'text/css'
+            : 'application/octet-stream';
+    const dataUrl = `data:${mime};base64,${content.toString('base64')}`;
+    html = html.split(ref).join(dataUrl);
+  });
+}
 const scriptMatch = html.match(/<script type="module"[^>]*>[\s\S]*?<\/script>/);
 if (scriptMatch) {
   const script = scriptMatch[0];
@@ -85,6 +101,10 @@ if (!html.includes('body.app-ready #boot')) {
 }
 
 fs.writeFileSync(indexPath, html);
+
+if (fs.existsSync(assetsDir)) {
+  fs.rmSync(assetsDir, { recursive: true, force: true });
+}
 
 const entries = fs.readdirSync(distDir);
 if (entries.length !== 1 || entries[0] !== 'index.html') {
